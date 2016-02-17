@@ -14,11 +14,9 @@ class App(object):
         for i,c in enumerate(clusters):
             output.append('Tweet number {0}:{1}'.format(i,c))
             return output
-        
+
     def getCluster(self,query):
-        cluster = {'c1':[1,2,3],
-                   'c2':[4,5],
-                    'c3':[6,7,8]}
+        clusters = {}
 
         tweets = self.api.getTweets(query,10)
 
