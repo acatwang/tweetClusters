@@ -7,7 +7,7 @@ from nltk.tokenize import TweetTokenizer,RegexpTokenizer
 from nltk.corpus import twitter_samples, stopwords,reuters
 from nltk.stem.porter import PorterStemmer
 from gensim import corpora, models
-from ..util import process
+from ..util import process,readTweetsSample
 
 NUM_TOPIC = 10
 
@@ -15,11 +15,11 @@ NUM_TOPIC = 10
 tweetTknzr = TweetTokenizer(strip_handles=True, reduce_len=True)
 
 
-rawTweets = twitter_samples.strings('tweets.20150430-223406.json')
+#rawTweets = twitter_samples.strings('tweets.20150430-223406.json')
 #reuters = [ reuters.raw(f) for f in reuters.fileids()]
 
 #rawCorpus = rawTweets + reuters
-rawCorpus = rawTweets
+rawCorpus = readTweetsSample("/Users/yywang/Github/tweetsCluster/apple.txt")
 
 texts = [process(line,tweetTknzr) for line in rawCorpus]
 
@@ -29,8 +29,8 @@ print texts[:3]
 dictionary = corpora.Dictionary(texts)
 corpus = [dictionary.doc2bow(text) for text in texts]   # convert tokenized documents into a document-term matrix
 
-dictionary.save('tweetsRegex.dict')
+dictionary.save('appleTweets.dict')
 ldamodel = models.ldamodel.LdaModel(corpus, num_topics=NUM_TOPIC, id2word = dictionary, passes=20)
-ldamodel.print_topics(num_topics=NUM_TOPIC, num_words=10)
+print(ldamodel.print_topics(num_topics=NUM_TOPIC, num_words=10))
 
-ldamodel.save('tweetsRegexMdl')
+ldamodel.save('appleTweetsMdl')
