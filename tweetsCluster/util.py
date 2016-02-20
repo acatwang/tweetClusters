@@ -54,7 +54,6 @@ def readTweetObjects(filepath):
         print "Loaded {} tweet objects".format(str(len(tweetSamples)))
     return tweetSamples
 
-
 def readTweetsSample(filepath,limit=None):
     listOfTweets = []
     print "Loading corpus"

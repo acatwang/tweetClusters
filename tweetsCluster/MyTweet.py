@@ -1,5 +1,7 @@
 from urlparse import urlparse
 import time,re
+from collections import namedtuple
+
 
 class MyTweet(object):
     """
@@ -13,22 +15,24 @@ class MyTweet(object):
     def __init__(self,tweet):
         self.text = tweet.text
 
-        self.cleanText = self.process(tweet.text,
+        self.processedText = self.rewrite(tweet.text,
                                      tweet.user.screen_name,
                                      tweet.in_reply_to_user_id_str,
                                      tweet.in_reply_to_status_id)
         self.lang = tweet.lang
         self.domains, self.urlpPaths, self.hasPhoto = self.parseUrl(tweet.entities)
         self.timezone = tweet.user.utc_offset if tweet.user.utc_offset else 0
+        self.sentimentScore = self.getScore(tweet.text)
 
         # For "best" results
-        self.time = time.mktime(time.strptime(tweet.created_at,'%a %b %d %H:%M:%S +0000 %Y'))
+        print type(tweet.created_at)
+        self.time = time.mktime(tweet.created_at.timetuple())
         self.retweetCnt = tweet.retweet_count
         self.isRetweet = self.isRetweet(tweet.text)
         self.favCnt = tweet.user.favourites_count
         self.followers = tweet.user.followers_count
 
-    def process(self,rawTweet, creatorName, *args):
+    def rewrite(self,rawTweet, creatorName, *args):
         rawTweet = rawTweet.lower()
 
         # remove url and media link
@@ -49,9 +53,10 @@ class MyTweet(object):
 
 
         # urls
-        for item in entities.urls:
+        for item in entities.get('urls'):
             try:
-                url = item.expanded_url if hasattr(item,'expanded_url') else item.url
+                url = item['expanded_url'] if item.get('expanded_url') else item['url']
+
             except AttributeError:
                 continue
             parsed = urlparse(url)
@@ -59,13 +64,13 @@ class MyTweet(object):
             urlPaths.append(parsed.path.strip("/"))
 
         # medias
-        if hasattr(entities,'media'):
-            for item in entities.media:
+        if entities.get('media'):
+            for item in entities['media']:
                 try:
-                    hasPhoto = item.type == "photo"
+                    hasPhoto = item['type'] == "photo"
                 except AttributeError:
                     continue
-                mediaUrl = item.media_url
+                mediaUrl = item.get('media_url')
                 parsed = urlparse(mediaUrl)
                 domains.append(parsed.netloc)
 
@@ -73,3 +78,7 @@ class MyTweet(object):
 
     def isRetweet(self,tweet):
         return 'rt' in tweet.lower()
+
+    def getScore(self,tweet):
+        # sentiment analysis
+        return 0
