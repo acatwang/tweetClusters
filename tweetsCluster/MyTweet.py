@@ -25,7 +25,6 @@ class MyTweet(object):
         self.sentimentScore = self.getScore(tweet.text)
 
         # For "best" results
-        print type(tweet.created_at)
         self.time = time.mktime(tweet.created_at.timetuple())
         self.retweetCnt = tweet.retweet_count
         self.isRetweet = self.isRetweet(tweet.text)
