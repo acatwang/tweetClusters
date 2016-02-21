@@ -1,19 +1,27 @@
-from nltk.tokenize import RegexpTokenizer
+from nltk.tokenize import RegexpTokenizer,TweetTokenizer
 from nltk.stem.porter import PorterStemmer
+from nltk.stem.snowball import SnowballStemmer
 from nltk.corpus import stopwords
 import string,json
 from collections import namedtuple
-
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 
+# Expand stopword list for tweets
+# Ref: http://techland.time.com/2009/06/08/the-500-most-frequently-used-words-on-twitter/
+STOPWORDS = stopwords.words() + list(string.punctuation) + \
+            ['rt','r','lol','oh','ha','haha','thanks','bit.ly','post','time','go']
+
 
 # Using NLTK toolset for text processing
-STOPWORDS = stopwords.words() + list(string.punctuation) + ['rt','retweet']
 regexTknzr = RegexpTokenizer(r'\w+')
 p_stemmer = PorterStemmer()
 
-def process(rawTweet,tokenizer=regexTknzr,stemmer=p_stemmer):
+# Use the following tokenizer and stemmer to better handle tweet texts
+twtTokenizer = TweetTokenizer()
+snowballStemmer = SnowballStemmer("english")
+
+def process(rawTweet,tokenizer=twtTokenizer,stemmer=snowballStemmer):
 	tweet = rawTweet
 	tokens = tokenizer.tokenize(tweet)
 	delStops = [s for s in tokens if s not in STOPWORDS]
