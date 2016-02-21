@@ -9,7 +9,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 
 # Using NLTK toolset for text processing
-STOPWORDS = stopwords.words() + list(string.punctuation) + ['rt']
+STOPWORDS = stopwords.words() + list(string.punctuation) + ['rt','retweet']
 regexTknzr = RegexpTokenizer(r'\w+')
 p_stemmer = PorterStemmer()
 
