@@ -1,5 +1,5 @@
 from urlparse import urlparse
-import time,re
+import time,re,datetime
 from collections import namedtuple
 
 
@@ -14,7 +14,7 @@ class MyTweet(object):
     """
     def __init__(self,tweet):
         self.text = tweet.text
-
+        self.creator = tweet.user.screen_name.encode('utf-8', 'ignore'),
         self.processedText = self.rewrite(tweet.text,
                                      tweet.user.screen_name,
                                      tweet.in_reply_to_user_id_str,
@@ -26,10 +26,10 @@ class MyTweet(object):
 
         # For "best" results
         self.time = time.mktime(tweet.created_at.timetuple())
-        self.retweetCnt = tweet.retweet_count
-        self.isRetweet = self.isRetweet(tweet.text)
-        self.favCnt = tweet.user.favourites_count
-        self.followers = tweet.user.followers_count
+        self.retweetCnt = tweet.retweet_count + 0.0
+        self.isRetweet = self.isRetweet(tweet.text) +0.0
+        self.favCnt = tweet.user.favourites_count+0.0
+        self.followers = tweet.user.followers_count + 0.0
 
     def rewrite(self,rawTweet, creatorName, *args):
         rawTweet = rawTweet.lower()
@@ -81,3 +81,9 @@ class MyTweet(object):
     def getScore(self,tweet):
         # sentiment analysis
         return 0
+
+    def printTweet(self):
+        #print self.creator
+        return "{0} tweets at {1}: {2}".format(self.creator[0], # TODO:checkout why is it a tuple
+                                               datetime.datetime.fromtimestamp(self.time).strftime('%Y-%m-%d %H:%M:%S'),
+                                               self.text.encode('utf-8', 'ignore'))

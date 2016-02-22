@@ -5,12 +5,12 @@ from nltk.corpus import stopwords
 import string,json
 from collections import namedtuple
 from sklearn.feature_extraction.text import TfidfVectorizer
-
+from datetime import datetime
 
 # Expand stopword list for tweets
 # Ref: http://techland.time.com/2009/06/08/the-500-most-frequently-used-words-on-twitter/
 STOPWORDS = stopwords.words() + list(string.punctuation) + \
-            ['rt','r','lol','oh','ha','haha','thanks','bit.ly','post','time','go']
+            ['rt','r','lol','oh','ha','haha','thanks','bit.ly','post','time','go','retweet',"i'm"]
 
 
 # Using NLTK toolset for text processing
@@ -29,9 +29,6 @@ def process(rawTweet,tokenizer=twtTokenizer,stemmer=snowballStemmer):
 	return stemmed
 
 def convertToObj(jsnDict,name="Tweet"):
-    # name == 'entities':
-     #   print jsnDict
-
     if all(not isinstance(v,dict) for v in jsnDict.values()):
        return namedtuple(name,jsnDict.keys())(*jsnDict.values())
 
@@ -44,22 +41,30 @@ def convertToObj(jsnDict,name="Tweet"):
     return jsnDict.values()
 
 
-def readTweetObjects(filepath):
+def readTweetObjects(filepath,nlimit=None):
     tweetSamples = []
     with open(filepath) as j:
-        for line in j.readlines():
+        for i,line in enumerate(j.readlines()):
             jsonFile = json.loads(line)
-            tweetObj = namedtuple('Tweet', jsonFile.keys())(*convertToObj(jsonFile))
-            # Make each entity in entities a nametuple
-            for f in tweetObj.entities._fields:
-                lst = getattr(tweetObj.entities,f)
-                #print f,lst
-                tweetObj = tweetObj._replace(entities=tweetObj.entities._replace(**{f:[namedtuple(f,obj.keys())(*obj.values()) for obj in lst]}))
-            #print tweetObj.entities
+            #tweetObj = namedtuple('Tweet', jsonFile.keys())(*convertToObj(jsonFile))
+            tweetObj = namedtuple('Tweet', jsonFile.keys())(*jsonFile.values())
+
+            # Make user an object
+            tweetObj = tweetObj._replace(**{'user':namedtuple('user',jsonFile['user'].keys())(*jsonFile['user'].values()),
+                                            'created_at':datetime.strptime(jsonFile['created_at'],"%a %b %d %H:%M:%S +0000 %Y")})
+
+
             tweetSamples.append(tweetObj)
 
+            if nlimit and i == nlimit-1:
+                break
+            #print tweetObj.entities
+        print "Loaded {} tweet objects from {}".format(len(tweetSamples),filepath)
 
-        print "Loaded {} tweet objects".format(str(len(tweetSamples)))
+    t = tweetSamples[0]
+    #print 'readTweetObject'
+    #print t.user.screen_name
+    #print type(t.user.screen_name)
     return tweetSamples
 
 def readTweetsSample(filepath,limit=None):

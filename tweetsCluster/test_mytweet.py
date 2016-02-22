@@ -11,5 +11,5 @@ for tweet in tweetSamples:
     print "{}: {}".format(myTweet.timezone, tweet.user.time_zone)
 
     print tweet.text
-    print myTweet.cleanText
-    print ()
+    print myTweet.processedText
+    print
