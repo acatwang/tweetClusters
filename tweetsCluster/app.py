@@ -5,15 +5,13 @@ from apiAuth import CONSUMER_KEY, CONSUMER_SECRET, ACCESS_TOKEN, ACCESS_TOKEN_SE
 import numpy as np
 from MyTweet import MyTweet
 from sklearn.feature_extraction.text import TfidfVectorizer
-from util import STOPWORDS,process
+from util import STOPWORDS,process,SnowballStemmer
 import json, datetime
 from scipy.spatial.distance import euclidean, pdist
 from sklearn.metrics import pairwise_distances
 from sklearn.preprocessing import normalize,scale
 from sklearn import metrics
-
-
-MAX_TWEET = 1000
+from math import sqrt
 
 class App(object):
     """
@@ -22,6 +20,7 @@ class App(object):
     def __init__(self):
         self.api = self._getApi()
         self.tweets = []
+        self.tweetCnt = 0
 
     def _getApi(self):
         auth = tweepy.OAuthHandler(CONSUMER_KEY, CONSUMER_SECRET)
@@ -32,71 +31,94 @@ class App(object):
     def sayHi(selfs):
         print "Hi there"
 
-    def getTweets(self,query,limit=MAX_TWEET,store=False):
-        # TODO: solve time limit issue
+    def is_rate_limit_error(self,e):
+        return isinstance(e.message, list) \
+                and e.message[0:] \
+                and 'code' in e.message[0] \
+                and e.message[0]['code'] == 88
+
+    def getTweets(self,query,limit,store=False):
         tweetCnt = 0
-        for statusObj in tweepy.Cursor(self.api.search, q=query,lang='en').items(limit):
-            #print statusObj
-            tweetCnt +=1
-            self.tweets.append(MyTweet(statusObj))
-            if store:
-                with open(query+".json","a") as f:
-                    f.write(json.dumps(statusObj._json)+"\n")
-        print "Got total {} tweets".format(tweetCnt)
+        try:
+            for statusObj in tweepy.Cursor(self.api.search, q=query,lang='en').items():
+                #print statusObj
+                tweetCnt +=1
+                self.tweets.append(MyTweet(statusObj))
+                if tweetCnt == limit:
+                    break
+                if store:
+                    with open(query+".json","a") as f:
+                        f.write(json.dumps(statusObj._json)+"\n")
+        except tweepy.RateLimitError:
+            # handle the search API limit
+            pass
+        except tweepy.TweepError as e:
+            if not self.is_rate_limit_error(e):
+                raise e
+        self.tweetCnt = tweetCnt
+        print "Got total {} tweets \n(The number is smaller than you specified? Blame Twitter API rate limit)"\
+            .format(self.tweetCnt)
+
         return self.tweets
 
-    def getFeatures(self,tweets):
+    def getFeatures(self,tweets,query=None):
+
         # tfidf matrix
         rewroteText = [t.processedText for t in tweets]
-        tfidf_vectorizer = TfidfVectorizer(max_df=.5,
-                                           max_features=5000,
+        tfidf_vectorizer = TfidfVectorizer(max_df=0.9,
+                                           max_features=10000,
                                             min_df=0.05,
                                             stop_words=STOPWORDS,
                                             use_idf=True,
                                             tokenizer=process,
-                                            ngram_range=(1,3))
+                                            ngram_range=(1,2))
 
         tfidfMatrix =tfidf_vectorizer.fit_transform(rewroteText)
-        print "tfidf Martirx shape:{}",format(tfidfMatrix.shape)
+        print "Found {} meaningful words".format(tfidfMatrix.shape[1])
 
         self.tfidfDict = tfidf_vectorizer.get_feature_names()
-        print self.tfidfDict
+        # print self.tfidfDict
         context = []
         for t in tweets:
-            context.append([t.timezone,t.time,t.hasPhoto,t.sentimentScore])
+            context.append([t.timezone,t.hasPhoto,t.sentimentScore])
         context = np.array(context)
 
         #print "tdidf {}".format(tfidfMatrix.shape)
         #print "norm {} {}".format(normContext.shape,type(normContext))
         features = np.hstack((tfidfMatrix.A,context))
-        print features.shape
+        #print features.shape
         return features
 
-        #print features.shape
-        #return features
-
-    def search(self,query,K=3,tweetLimit=MAX_TWEET,store=False):
-        print "Searching for the query: {0}".format(query)
+    def search(self,query,K,tweetLimit,store=False):
+        print "Searching for the query [{}] at {}".\
+            format(query,datetime.datetime.now().strftime("%b %d. %Y %I:%M%p"))
 
         tweets = self.getTweets(query,tweetLimit,store)
-        tweet2features = self.getFeatures(tweets)
+        tweet2features = self.getFeatures(tweets,query)
+
+        if not K:
+            K = int(round(sqrt(self.tweetCnt)/2))
+
         clusters = self.clusterAndRank(tweet2features,K)
 
         self.present(clusters,K)
 
 
     def present(self,clusters,K):
+        print
         for i in range(K):
             print "Cluster {}: {}".format(i, clusters[i]['words'])
-            print "Best Tweet: {}".format(clusters[i]['best'])
-            print "First Tweet: {}".format(clusters[i]['first'])
-            for twt in clusters[i]['all'][:10]:
+            print "Sentiment Polarity: {}".format(round(clusters[i]['sentiment'],2))
+            print "Best Tweet:\n \t -{}".format(clusters[i]['best'])
+            print "First Tweet:\n \t - {}".format(clusters[i]['first'])
+            print "All Tweets in the cluster ({}):".format(clusters[i]['n'])
+            for twt in clusters[i]['all']:
                 print "\t - " + twt.printTweet()
             print
             print
 
 
-    def clusterAndRank(self,X,K=3,tweets=None,diagnose=False):
+    def clusterAndRank(self,X,K=3,tweets=None,diagnose=True):
         #print np.shape(X)
         km = MiniBatchKMeans(n_clusters=K, init='k-means++', n_init=1,
                          init_size=1000, batch_size=1000)
@@ -104,14 +126,14 @@ class App(object):
         if diagnose:
             print("Silhouette Coefficient: %0.3f"
                   % metrics.silhouette_score(X, km.labels_, sample_size=1000))
-            print()
+            print
 
         clusters = self.rankInCluster(km.labels_,km.cluster_centers_,K,X,tweets)
 
         return clusters
 
     def rankInCluster(self,labels,centers_features,K,X,tweets=None):
-        clusters = dict((clusId,{'all':[],'best':"",'first':"",'words':"","n":0}) for clusId in range(K))
+        clusters = dict((clusId,{'all':[],'best':"",'first':"",'words':"","n":0,'sentiment':0}) for clusId in range(K))
         if not tweets:
             tweets = self.tweets
         # In each cluster, do the following :
@@ -127,10 +149,11 @@ class App(object):
             clusters[label]['all'] = sorted(clusters[label]['all'], key=lambda x:x.time, reverse=True)
             clusters[label]['first'] = clusters[label]['all'][-1].printTweet()
 
-        # Find the best tweet in each cluster
+        # Find the best tweet and avg sentiment in each cluster
         for clusId in xrange(K):
             print "{} tweets in cluster {}".format(len(clusters[clusId]['all']), clusId)
             tweetIdxInClus = np.where(labels == clusId)
+            clusters[clusId]['sentiment'] = np.mean(X[tweetIdxInClus,-1])
             if not clusters[clusId]["n"]:
                 break
             #print tweetIdxInClus
@@ -158,9 +181,13 @@ class App(object):
         sorted_centers_features = centers_features.argsort()[:, ::-1]
         for ctr in xrange(K):
             top3words = []
-            for field in sorted_centers_features[ctr,:5]: # Get the top 3 common words
+            found = 0
+            for field in sorted_centers_features[ctr]: # Get the top 3 common words
                 try:
                     top3words.append(self.tfidfDict[field].encode('utf-8', 'ignore'))
+                    if found == 2:
+                        break
+                    found +=1
                 except IndexError:
                     continue
             clusters[ctr]['words'] = "/".join(top3words)

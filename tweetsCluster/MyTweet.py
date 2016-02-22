@@ -16,10 +16,11 @@ class MyTweet(object):
     def __init__(self,tweet):
         self.text = tweet.text
         self.creator = tweet.user.screen_name.encode('utf-8', 'ignore'),
-        self.domains, self.urlpPaths, self.hasPhoto = self.parseUrl(tweet.entities)
+        self.domains, self.urlPaths, self.hasPhoto = self.parseUrl(tweet.entities)
         self.processedText = self.rewrite(tweet.text,
-                                     tweet.user.screen_name)
-                                     #self.domains,
+                                     tweet.user.screen_name,
+                                     #self.urlPaths,
+                                     self.domains)
                                      #self.urlpPaths)
         self.lang = tweet.lang
         self.timezone = tweet.user.utc_offset if tweet.user.utc_offset else 0
@@ -33,7 +34,7 @@ class MyTweet(object):
         self.followers = tweet.user.followers_count + 0.0
 
     def rewrite(self,rawTweet, creatorName, *args):
-        rawTweet = rawTweet.lower()
+        text = rawTweet.lower()
 
         # remove url and media link
         text = re.sub(r"http\S+", "", rawTweet)
@@ -42,8 +43,21 @@ class MyTweet(object):
 
         for arg in args:
             if arg:
-                text += "{} ".format( "".join(arg))
+                text += "{} ".format( " ".join(arg))
         return text
+
+    def getDomain(self,parsedUrl):
+        commonDomain = ["com","org","pbs","es","us","www",'it',"ly"]
+
+        domain = parsedUrl.netloc
+        return [x for x in domain.split(".") if x not in commonDomain]
+    def getPath(self,path):
+        bow = []
+        for p in path.split("/"):
+            for x in p.split("-"):
+                if re.search('[a-zA-Z]',x):
+                    bow.append(x)
+        return bow
 
     def parseUrl(self,entities):
         """
@@ -52,17 +66,17 @@ class MyTweet(object):
         domains, urlPaths = [], []
         hasPhoto = 0
 
-
         # urls
+        parsedUrls = []
         for item in entities.get('urls'):
             try:
                 url = item['expanded_url'] if item.get('expanded_url') else item['url']
-
             except AttributeError:
                 continue
             parsed = urlparse(url)
-            domains.append(parsed.netloc)
-            urlPaths.append(parsed.path.strip("/"))
+            parsedUrls.append(parsed)
+            #print parsed.path
+            urlPaths = self.getPath(parsed.path)
 
         # medias
         if entities.get('media'):
@@ -72,8 +86,10 @@ class MyTweet(object):
                 except AttributeError:
                     continue
                 mediaUrl = item.get('media_url')
-                parsed = urlparse(mediaUrl)
-                domains.append(parsed.netloc)
+                parsedUrls.append(urlparse(mediaUrl))
+
+        for url in parsedUrls:
+            domains = self.getDomain(url)
 
         return domains, urlPaths, hasPhoto
 
