@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo `dirname $0`/..
+#echo `dirname $0`/..
 
 #set up environment
 source venv/bin/activate
@@ -8,8 +8,8 @@ source venv/bin/activate
 
 # Take parameter from input
 query="apple"
-k=3
-nTweet=1000
+k=0
+nTweet=10000  # default upper limit
 
 usage(){
     echo 'Usage: ./tweetCluster.sh -q <query> -k <numCluster> -n <tweetLimitNum>'
@@ -43,9 +43,7 @@ done
  
 if ((!option_found && $#==1)); then
     query=$1
-else 
-    echo "Please enter query"
 fi
 
-echo "query: $query, numOfgroup:$k, tweetNum:$nTweet"
+#echo "query: $query, numOfgroup:$k, tweetNum:$nTweet"
 python run.py $query $k $nTweet
