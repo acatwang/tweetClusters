@@ -9,9 +9,9 @@ from datetime import datetime
 
 # Expand stopword list for tweets
 # Ref: http://techland.time.com/2009/06/08/the-500-most-frequently-used-words-on-twitter/
-STOPWORDS = stopwords.words() + list(string.punctuation) + \
-            ['rt','r','lol','oh','ha','haha','thanks','bit.ly','post','time','go','retweet',"i'm"]
-
+STOPWORDS = stopwords.words("English") + list(string.punctuation) + \
+            ['rt','r','lol','oh','ha','haha','thanks','bit.ly','post','time','go','retweet',"i'm"] +\
+            ["...","..",".","!","!!!","!!",u"\u2026",u'\ud83d',"twimg","twitter","would"]
 
 # Using NLTK toolset for text processing
 regexTknzr = RegexpTokenizer(r'\w+')
