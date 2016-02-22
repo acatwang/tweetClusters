@@ -1,4 +1,5 @@
 from urlparse import urlparse
+from textblob import TextBlob
 import time,re,datetime
 from collections import namedtuple
 
@@ -15,12 +16,12 @@ class MyTweet(object):
     def __init__(self,tweet):
         self.text = tweet.text
         self.creator = tweet.user.screen_name.encode('utf-8', 'ignore'),
-        self.processedText = self.rewrite(tweet.text,
-                                     tweet.user.screen_name,
-                                     tweet.in_reply_to_user_id_str,
-                                     tweet.in_reply_to_status_id)
-        self.lang = tweet.lang
         self.domains, self.urlpPaths, self.hasPhoto = self.parseUrl(tweet.entities)
+        self.processedText = self.rewrite(tweet.text,
+                                     tweet.user.screen_name)
+                                     #self.domains,
+                                     #self.urlpPaths)
+        self.lang = tweet.lang
         self.timezone = tweet.user.utc_offset if tweet.user.utc_offset else 0
         self.sentimentScore = self.getScore(tweet.text)
 
@@ -37,10 +38,11 @@ class MyTweet(object):
         # remove url and media link
         text = re.sub(r"http\S+", "", rawTweet)
 
-        text += "@{} ".format(creatorName)
+        #text += "@{} ".format(creatorName)
+
         for arg in args:
             if arg:
-                text += "{} ".format(str(arg))
+                text += "{} ".format( "".join(arg))
         return text
 
     def parseUrl(self,entities):
@@ -80,10 +82,12 @@ class MyTweet(object):
 
     def getScore(self,tweet):
         # sentiment analysis
-        return 0
+        blob = TextBlob(tweet)
+
+        return blob.sentiment.polarity
 
     def printTweet(self):
         #print self.creator
         return "{0} tweets at {1}: {2}".format(self.creator[0], # TODO:checkout why is it a tuple
                                                datetime.datetime.fromtimestamp(self.time).strftime('%Y-%m-%d %H:%M:%S'),
-                                               self.text.encode('utf-8', 'ignore'))
+                                               re.sub("[\t\n]"," ",self.text).encode('utf-8', 'ignore'))

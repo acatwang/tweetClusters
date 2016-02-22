@@ -4,7 +4,7 @@ echo `dirname $0`/..
 
 #set up environment
 source venv/bin/activate
-pip install -r requirements.txt
+#pip install -r requirements.txt
 
 # Take parameter from input
 query="apple"
@@ -48,4 +48,4 @@ else
 fi
 
 echo "query: $query, numOfgroup:$k, tweetNum:$nTweet"
-python run.py query k nTweet
+python run.py $query $k $nTweet
